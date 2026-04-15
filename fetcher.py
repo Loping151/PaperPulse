@@ -169,6 +169,7 @@ class ArxivFetcher:
             categories=categories,
             primary_category=result.primary_category if hasattr(result, "primary_category") else (categories[0] if categories else ""),
             source="preprint",
+            alphaxiv_url=f"https://www.alphaxiv.org/abs/{arxiv_id}",
         )
 
     def search_papers(self, query: str, max_results: int = 10) -> list[Paper]:

@@ -1,14 +1,14 @@
 #!/bin/bash
-# PaperRadar Entrypoint Script
+# Paper Pulse Entrypoint Script
 # Reads schedule from config.yaml and sets up cron dynamically
 
-echo "=== PaperRadar ==="
+echo "=== Paper Pulse ==="
 echo "Starting at: $(date)"
 echo "Timezone: $TZ"
 echo ""
 
 # Export environment variables for cron (with export prefix and quoted values)
-printenv | grep -E "^(LIGHT_|HEAVY_|HKU_|TZ=|CHROME|PATH=)" | while IFS='=' read -r name value; do
+printenv | grep -E "^(LIGHT_|HEAVY_|EZPROXY_|HKU_|EMAIL_|SMTP_|TZ=|CHROME|PATH=)" | while IFS='=' read -r name value; do
     echo "export ${name}=\"${value}\""
 done > /app/.env.cron
 chmod 600 /app/.env.cron
@@ -29,9 +29,9 @@ except Exception as e:
 echo "Cron schedule: $SCHEDULE"
 
 # Setup cron job dynamically
-echo "$SCHEDULE . /app/.env.cron && cd /app && /usr/local/bin/python main.py >> /app/logs/cron.log 2>&1" > /etc/cron.d/paper-radar
-chmod 0644 /etc/cron.d/paper-radar
-crontab /etc/cron.d/paper-radar
+echo "$SCHEDULE . /app/.env.cron && cd /app && /usr/local/bin/python main.py >> /app/logs/cron.log 2>&1" > /etc/cron.d/paper-pulse
+chmod 0644 /etc/cron.d/paper-pulse
+crontab /etc/cron.d/paper-pulse
 echo "Cron job configured"
 
 # Start web server

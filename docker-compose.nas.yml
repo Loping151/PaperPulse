@@ -1,4 +1,4 @@
-# NAS 部署专用配置 - PaperRadar
+# NAS 部署专用配置 - Paper Pulse
 # 从 Docker Hub 拉取镜像，无需本地构建
 #
 # 使用方式:
@@ -8,9 +8,9 @@
 #   4. 运行: docker-compose -f docker-compose.nas.yml up -d
 
 services:
-  paper-radar:
-    image: rockhhhh/paper-radar:latest
-    container_name: paper-radar
+  paper-pulse:
+    image: yourname/paper-pulse:latest
+    container_name: paper-pulse
     restart: unless-stopped
 
     environment:
@@ -32,8 +32,12 @@ services:
       - HEAVY_LLM_MODEL=${HEAVY_LLM_MODEL}
 
       # ===== EZproxy Configuration (for journal PDFs) =====
-      - HKU_LIBRARY_UID=${HKU_LIBRARY_UID}
-      - HKU_LIBRARY_PIN=${HKU_LIBRARY_PIN}
+      - EZPROXY_BASE_URL=${EZPROXY_BASE_URL}
+      - EZPROXY_UID=${EZPROXY_UID}
+      - EZPROXY_PIN=${EZPROXY_PIN}
+      - EZPROXY_USERNAME_FIELD=${EZPROXY_USERNAME_FIELD:-userid}
+      - EZPROXY_PASSWORD_FIELD=${EZPROXY_PASSWORD_FIELD:-password}
+      - EZPROXY_SUBMIT_SELECTOR=${EZPROXY_SUBMIT_SELECTOR:-input[type='submit']}
 
     volumes:
       # Configuration file

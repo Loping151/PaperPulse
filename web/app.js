@@ -593,6 +593,7 @@ function renderPapers(report) {
       const localPdfUrl = buildLocalPdfUrl(paper, report);
       const pdfActionUrl = localPdfUrl || remotePdfUrl;
       const codeUrl = sanitizeUrl(paper.code_url || '');
+      const alphaxivUrl = sanitizeUrl(paper.alphaxiv_url || '');
 
       const paperKey = getPaperKey(paper);
       const paperNumber = keyword === 'all' ? null : getPaperNumber(paper, paperNumberById, index + 1);
@@ -710,6 +711,7 @@ function renderPapers(report) {
           <div class="paper-actions">
             ${abstractUrl ? `<a class="secondary" href="${escapeHtml(abstractUrl)}" target="_blank" rel="noreferrer noopener">页面</a>` : ''}
             ${pdfActionUrl ? `<a href="${escapeHtml(pdfActionUrl)}" target="_blank" rel="noreferrer noopener">PDF</a>` : ''}
+            ${alphaxivUrl ? `<a href="${escapeHtml(alphaxivUrl)}" target="_blank" rel="noreferrer noopener">AlphaXiv</a>` : ''}
             ${codeUrl ? `<a href="${escapeHtml(codeUrl)}" target="_blank" rel="noreferrer noopener">代码</a>` : ''}
           </div>
         </article>

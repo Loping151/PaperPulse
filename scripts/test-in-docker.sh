@@ -14,7 +14,7 @@ cd "$PROJECT_DIR"
 
 # Build image if needed
 echo "Building Docker image..."
-docker build -t paper-radar-test -f Dockerfile .
+docker build -t paper-pulse-test -f Dockerfile .
 
 echo ""
 echo "Running tests in Docker..."
@@ -25,5 +25,5 @@ docker run --rm \
     --entrypoint python \
     -v "$PROJECT_DIR/config.yaml:/app/config.yaml:ro" \
     -v "$PROJECT_DIR/scripts:/app/scripts:ro" \
-    paper-radar-test \
+    paper-pulse-test \
     scripts/test_sources.py "$@"

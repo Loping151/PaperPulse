@@ -1,9 +1,15 @@
 """Report generation module.
 
-Generates Markdown and JSON outputs for the PaperRadar web UI.
+Generates Markdown and JSON outputs for the Paper Pulse web UI.
 """
 
 import json
+import smtplib
+import time
+from email.header import Header
+from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
+from email.utils import formataddr
 from pathlib import Path
 from typing import Optional
 
@@ -172,7 +178,7 @@ class Reporter:
 
         lines.append("")
         lines.append("---")
-        lines.append("*本报告由 PaperRadar 自动生成 (支持预印本 + 学术期刊)*")
+        lines.append("*本报告由 Paper Pulse 自动生成 (支持预印本 + 学术期刊)*")
 
         return "\n".join(lines)
 
@@ -188,7 +194,7 @@ class Reporter:
         output_path = Path(output_dir)
         output_path.mkdir(parents=True, exist_ok=True)
 
-        filename = f"paper-radar-{report.date}.md"
+        filename = f"paper-pulse-{report.date}.md"
         file_path = output_path / filename
 
         markdown = self.generate_markdown(report)
@@ -255,6 +261,7 @@ class Reporter:
             "source": paper_source,
             "primary_category": primary_category,
             "categories": categories,
+            "alphaxiv_url": analysis.alphaxiv_url or (paper.alphaxiv_url if paper else ""),
             "published": published,
             "updated": updated,
         }
@@ -271,7 +278,7 @@ class Reporter:
         output_path = Path(output_dir)
         output_path.mkdir(parents=True, exist_ok=True)
 
-        filename = f"paper-radar-{report.date}.json"
+        filename = f"paper-pulse-{report.date}.json"
         file_path = output_path / filename
 
         papers_by_keyword: dict[str, list[dict]] = {}
@@ -336,18 +343,33 @@ class Reporter:
 </body></html>"""
 
     def send_email(self, report: DailyReport, markdown_content: str) -> dict:
-        """Send report via email proxy as styled HTML."""
+        """Send report via configured email channel (proxy or smtp)."""
         email_config = self.config.get("email", {})
         if not email_config.get("enabled", False):
             return {"success": False, "error": "Email not enabled"}
 
-        api_url = email_config.get("api_url", "")
-        api_token = email_config.get("api_token", "")
+        mode = email_config.get("mode", "proxy")
+        if mode == "smtp":
+            return self._send_email_smtp(report, markdown_content, email_config)
+        return self._send_email_proxy(report, markdown_content, email_config)
+
+    def _send_email_proxy(self, report: DailyReport, markdown_content: str, email_config: dict) -> dict:
+        """Send report via Email Proxy API."""
+        proxy_cfg = email_config.get("proxy", {})
+        api_url = proxy_cfg.get("api_url", "")
+        api_token = proxy_cfg.get("api_token", "")
+
+        # Backward compatibility: support flat config (api_url/api_token at top level)
+        if not api_url:
+            api_url = email_config.get("api_url", "")
+        if not api_token:
+            api_token = email_config.get("api_token", "")
+
         recipients = email_config.get("recipients", [])
-        sender_name = email_config.get("sender_name", "PaperRadar")
+        sender_name = email_config.get("sender_name", "Paper Pulse")
 
         if not api_url or not api_token or not recipients:
-            return {"success": False, "error": "Email config incomplete"}
+            return {"success": False, "error": "Email proxy config incomplete"}
 
         subject = f"📚 论文每日速递 - {report.date} ({report.matched_papers} 篇匹配)"
         html_body = self._markdown_to_html(markdown_content)
@@ -380,6 +402,68 @@ class Reporter:
             except Exception as e:
                 logger.error(f"Email send error for {to_addr}: {e}")
                 results[to_addr] = {"success": False, "error": str(e)}
+
+        return results
+
+    def _send_email_smtp(self, report: DailyReport, markdown_content: str, email_config: dict) -> dict:
+        """Send report via direct SMTP with retries."""
+        smtp_cfg = email_config.get("smtp", {})
+        host = smtp_cfg.get("host", "")
+        port = int(smtp_cfg.get("port", 465))
+        user = smtp_cfg.get("user", "")
+        password = smtp_cfg.get("pass", "")
+        use_tls = smtp_cfg.get("use_tls", True)
+        max_retries = int(smtp_cfg.get("max_retries", 3))
+
+        recipients = email_config.get("recipients", [])
+        sender_name = email_config.get("sender_name", "Paper Pulse")
+
+        if not host or not user or not password or not recipients:
+            return {"success": False, "error": "SMTP config incomplete"}
+
+        subject = f"📚 论文每日速递 - {report.date} ({report.matched_papers} 篇匹配)"
+        html_body = self._markdown_to_html(markdown_content)
+
+        results = {}
+        for to_addr in recipients:
+            success = False
+            last_error = ""
+            for attempt in range(max_retries):
+                try:
+                    msg = MIMEMultipart("alternative")
+                    msg["From"] = formataddr((str(Header(sender_name, "utf-8")), user))
+                    msg["To"] = to_addr
+                    msg["Subject"] = subject
+
+                    msg.attach(MIMEText(markdown_content, "plain", "utf-8"))
+                    msg.attach(MIMEText(html_body, "html", "utf-8"))
+
+                    if use_tls:
+                        server = smtplib.SMTP_SSL(host, port, timeout=30)
+                    else:
+                        server = smtplib.SMTP(host, port, timeout=30)
+                        server.starttls()
+
+                    server.login(user, password)
+                    server.send_message(msg)
+                    server.quit()
+
+                    if attempt > 0:
+                        logger.info(f"Email retry sent to {to_addr}, attempt {attempt + 1}")
+                    else:
+                        logger.info(f"Email sent to {to_addr} via SMTP")
+                    success = True
+                    break
+                except Exception as e:
+                    last_error = str(e)
+                    if attempt < max_retries - 1:
+                        wait_time = 2 ** attempt
+                        logger.warning(f"SMTP send to {to_addr} failed (attempt {attempt + 1}): {e}, retry in {wait_time}s")
+                        time.sleep(wait_time)
+                    else:
+                        logger.error(f"SMTP send to {to_addr} failed after {max_retries} retries: {e}")
+
+            results[to_addr] = {"success": success, "error": "" if success else last_error}
 
         return results
 

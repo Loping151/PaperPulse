@@ -18,6 +18,7 @@ class Paper:
     pdf_url: str
     categories: list[str]
     primary_category: str
+    alphaxiv_url: str = ""
 
     # Fields populated during processing
     matched_keywords: list[str] = field(default_factory=list)
@@ -85,6 +86,7 @@ class PaperAnalysis:
     # Code and dataset resources
     code_url: str = ""  # GitHub or other code repository URL
     dataset_info: str = ""  # Dataset name and scale description
+    alphaxiv_url: str = ""
 
     # Quality score (1-10)
     quality_score: int = 5  # Default score

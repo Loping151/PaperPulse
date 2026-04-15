@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
 """
-PaperRadar - Main Entry Point
+Paper Pulse - Main Entry Point
 
 Automated paper analysis based on keywords using dual LLM architecture.
 Supports preprints and academic journals (Nature, NEJM, etc.)
+Base repository: https://github.com/yanyanhuang/paper-radar/
 """
 
 import sys
@@ -41,7 +42,7 @@ def setup_logging(debug: bool = False):
     # Also log to file
     log_dir = Path("logs")
     log_dir.mkdir(exist_ok=True)
-    log_file = log_dir / f"paper-radar-{datetime.now().strftime('%Y-%m-%d')}.log"
+    log_file = log_dir / f"paper-pulse-{datetime.now().strftime('%Y-%m-%d')}.log"
     logger.add(log_file, format=log_format, level="DEBUG", rotation="1 day")
 
 
@@ -90,7 +91,7 @@ def validate_config_structure(config: dict) -> list[str]:
 
 def main():
     """Main entry point."""
-    parser = argparse.ArgumentParser(description="PaperRadar Daily")
+    parser = argparse.ArgumentParser(description="Paper Pulse Daily")
     parser.add_argument(
         "--config",
         "-c",
@@ -118,7 +119,7 @@ def main():
     setup_logging(args.debug)
 
     logger.info("=" * 60)
-    logger.info(f"PaperRadar Daily - {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+    logger.info(f"Paper Pulse Daily - {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
     logger.info("=" * 60)
 
     # Load configuration
@@ -207,9 +208,10 @@ def main():
     logger.info("[Stage 1] Filtering papers with Light LLM...")
 
     light_llm_configs = get_llm_config(config, "light")
-    if not light_llm_configs[0].get("api_key"):
-        logger.error("Light LLM API key not configured")
+    if not light_llm_configs:
+        logger.error("No valid Light LLM configuration found (all api_key/api_base empty)")
         sys.exit(1)
+    logger.info(f"Light LLM: {len(light_llm_configs)} provider(s) configured")
 
     light_llm = ResilientLLMClient(light_llm_configs)
     filter_agent = FilterAgent(light_llm, keywords)
@@ -262,9 +264,10 @@ def main():
     logger.info("[Stage 2] Analyzing papers with Heavy Vision LLM...")
 
     heavy_llm_configs = get_llm_config(config, "heavy")
-    if not heavy_llm_configs[0].get("api_key"):
-        logger.error("Heavy LLM API key not configured")
+    if not heavy_llm_configs:
+        logger.error("No valid Heavy LLM configuration found (all api_key/api_base empty)")
         sys.exit(1)
+    logger.info(f"Heavy LLM: {len(heavy_llm_configs)} provider(s) configured")
 
     heavy_llm = ResilientLLMClient(heavy_llm_configs)
 
@@ -294,6 +297,10 @@ def main():
             timeout=config.get("runtime", {}).get("pdf_timeout", 120),
             cache_dir="./cache/pdfs",
             headless=ezproxy_config.get("headless", True),
+            base_url=ezproxy_config.get("base_url"),
+            username_field=ezproxy_config.get("username_field"),
+            password_field=ezproxy_config.get("password_field"),
+            submit_selector=ezproxy_config.get("submit_selector"),
         )
 
     analysis_workers = config.get("runtime", {}).get("concurrent_analysis", 1)
@@ -316,12 +323,11 @@ def main():
     successful_analyses = [a for a in analyses if a.success]
     logger.info(f"Successfully analyzed {len(successful_analyses)} papers")
 
-    # Save successfully analyzed non-arXiv external papers to history
-    external_papers_saved = 0
+    # Save successfully analyzed papers to history for cross-day deduplication
+    papers_saved = 0
     for analysis in successful_analyses:
         paper = analysis.paper
-        # External sources use "key:identifier" IDs; native arXiv IDs do not contain ":"
-        if paper and ":" in paper.arxiv_id:
+        if paper:
             paper_history.add_paper(
                 paper_id=paper.arxiv_id,
                 title=paper.title,
@@ -331,10 +337,10 @@ def main():
                     paper.arxiv_id, paper.primary_category, today_date
                 ),
             )
-            external_papers_saved += 1
+            papers_saved += 1
 
-    if external_papers_saved > 0:
-        logger.info(f"Saved {external_papers_saved} external-source papers to history")
+    if papers_saved > 0:
+        logger.info(f"Saved {papers_saved} papers to history")
 
     # Group analyses by keyword
     analyses_by_keyword: dict[str, list[PaperAnalysis]] = {kw: [] for kw in keyword_names}
@@ -390,10 +396,45 @@ def main():
         results = reporter.generate_and_send(report)
         logger.info(f"Report delivery results: {results}")
 
+    # ========== Stage 5: Cleanup old PDF cache ==========
+    keep_days = config.get("runtime", {}).get("pdf_cache_keep_days", 7)
+    if keep_days > 0:
+        _cleanup_old_pdf_cache(keep_days)
+
     logger.info("")
     logger.info("=" * 60)
     logger.info("Done!")
     logger.info("=" * 60)
+
+
+def _cleanup_old_pdf_cache(keep_days: int):
+    """Remove PDF cache directories older than keep_days."""
+    from pathlib import Path
+    import shutil
+
+    pdf_cache_dir = Path("./cache/pdfs")
+    if not pdf_cache_dir.exists():
+        return
+
+    cutoff = datetime.now().date() - timedelta(days=keep_days)
+    removed = 0
+    for entry in pdf_cache_dir.iterdir():
+        if not entry.is_dir():
+            continue
+        try:
+            entry_date = datetime.strptime(entry.name, "%Y-%m-%d").date()
+        except ValueError:
+            continue
+        if entry_date < cutoff:
+            try:
+                shutil.rmtree(entry)
+                removed += 1
+                logger.debug(f"Removed old PDF cache: {entry}")
+            except Exception as e:
+                logger.warning(f"Failed to remove {entry}: {e}")
+
+    if removed > 0:
+        logger.info(f"Cleaned up {removed} old PDF cache directories (>{keep_days} days)")
 
 
 if __name__ == "__main__":

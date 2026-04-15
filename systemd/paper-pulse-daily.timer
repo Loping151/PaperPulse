@@ -1,0 +1,9 @@
+[Unit]
+Description=Run Paper Pulse daily report generator every morning
+
+[Timer]
+OnCalendar=*-*-* 09:10:00
+Persistent=true
+
+[Install]
+WantedBy=timers.target

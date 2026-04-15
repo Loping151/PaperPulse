@@ -1,11 +1,11 @@
 #!/bin/bash
-# PaperRadar - Build and push Docker image to Docker Hub
+# Paper Pulse - Build and push Docker image to Docker Hub
 # Usage: ./scripts/build-and-push.sh [tag]
 # Builds for linux/amd64 (NAS/x86_64 servers)
 
 set -e
 
-IMAGE_NAME="rockhhhh/paper-radar"
+IMAGE_NAME="yourname/paper-pulse"
 TAG="${1:-latest}"
 PLATFORM="linux/amd64"
 

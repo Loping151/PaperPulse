@@ -12,7 +12,10 @@ from models import Paper
 from paper_history import PaperHistory
 
 
-# Known journal RSS feeds
+# Built-in default journal RSS feeds.
+# These are used as fallbacks when a journal entry in config.yaml does NOT
+# explicitly specify an `rss_url`. You can override or extend any feed
+# purely through configuration without modifying this file.
 JOURNAL_RSS_FEEDS = {
     # Preprint servers
     "biorxiv": "https://connect.biorxiv.org/biorxiv_xml.php?subject=all",

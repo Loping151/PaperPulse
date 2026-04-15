@@ -1,0 +1,11 @@
+[Unit]
+Description=Paper Pulse Daily Report
+After=network.target
+
+[Service]
+Type=oneshot
+# TODO: change to your actual project path
+WorkingDirectory=/opt/paper-pulse
+Environment=PYTHONUNBUFFERED=1
+EnvironmentFile=-/opt/paper-pulse/.env
+ExecStart=/usr/bin/python3 main.py

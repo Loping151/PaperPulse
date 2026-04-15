@@ -1,4 +1,4 @@
-"""Simple FastAPI server for PaperRadar web frontend."""
+"""Simple FastAPI server for Paper Pulse web frontend."""
 
 import json
 import os
@@ -17,7 +17,7 @@ JSON_DIR = REPORTS_DIR / "json"
 WEB_DIR = BASE_DIR / "web"
 PDF_CACHE_DIR = Path(os.getenv("PDF_CACHE_DIR", BASE_DIR / "cache" / "pdfs"))
 
-app = FastAPI(title="PaperRadar Web")
+app = FastAPI(title="Paper Pulse Web")
 
 
 app.mount("/static", StaticFiles(directory=str(WEB_DIR)), name="static")
@@ -26,27 +26,21 @@ app.mount("/static", StaticFiles(directory=str(WEB_DIR)), name="static")
 def _list_report_files() -> list[Path]:
     if not JSON_DIR.exists():
         return []
-    # Support both old (arxiv-daily-) and new (paper-radar-) naming
-    files = list(JSON_DIR.glob("paper-radar-*.json"))
-    files.extend(JSON_DIR.glob("arxiv-daily-*.json"))
+    files = list(JSON_DIR.glob("paper-pulse-*.json"))
     return sorted(files, reverse=True)
 
 
 def _date_from_filename(path: Path) -> Optional[str]:
     name = path.stem
-    if name.startswith("paper-radar-"):
-        return name.replace("paper-radar-", "")
-    if name.startswith("arxiv-daily-"):
-        return name.replace("arxiv-daily-", "")
+    if name.startswith("paper-pulse-"):
+        return name.replace("paper-pulse-", "")
     return None
 
 
 def _load_report(date: Optional[str] = None) -> dict:
     if date:
         # Try new naming first, then old
-        target = JSON_DIR / f"paper-radar-{date}.json"
-        if not target.exists():
-            target = JSON_DIR / f"arxiv-daily-{date}.json"
+        target = JSON_DIR / f"paper-pulse-{date}.json"
         if not target.exists():
             raise HTTPException(status_code=404, detail="Report not found")
         return json.loads(target.read_text(encoding="utf-8"))

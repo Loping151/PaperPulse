@@ -38,8 +38,10 @@ RUN uv pip install --system -e .
 # Create directories
 RUN mkdir -p /app/logs /app/reports /app/cache
 
-# Copy config (can be overridden by volume mount)
-COPY config.yaml .
+# Copy config template and create a default config for the image
+# Users should override this with their own config.yaml via volume mount
+COPY config.yaml.template .
+RUN cp config.yaml.template config.yaml
 
 # Create entrypoint script that reads schedule from config.yaml
 COPY scripts/entrypoint.sh /entrypoint.sh

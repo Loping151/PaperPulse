@@ -1,7 +1,7 @@
 [project]
-name = "paper-radar"
+name = "paper-pulse"
 version = "0.1.0"
-description = "PaperRadar - Automated paper analysis based on keywords using dual LLM architecture"
+description = "Paper Pulse - Automated paper analysis based on keywords using dual LLM architecture"
 readme = "README.md"
 requires-python = ">=3.10"
 dependencies = [

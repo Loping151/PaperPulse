@@ -89,7 +89,12 @@ def get_llm_config(config: dict, llm_type: str) -> list[dict]:
 
     # Backward-compatible: dict -> [dict]
     if isinstance(llm_config, dict):
-        return [llm_config]
-    if isinstance(llm_config, list):
-        return llm_config
-    return [llm_config]
+        configs = [llm_config]
+    elif isinstance(llm_config, list):
+        configs = llm_config
+    else:
+        configs = [llm_config]
+
+    # Filter out configs with empty api_key or api_base
+    valid = [c for c in configs if c.get("api_key") and c.get("api_base")]
+    return valid if valid else configs

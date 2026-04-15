@@ -1,0 +1,132 @@
+# ===========================================
+# Paper Pulse 配置文件模板
+# 复制为 config.yaml 后填入你的真实信息
+# ===========================================
+
+# Keyword configuration
+keywords:
+  - name: "Medical Image Analysis"
+    description: "Medical image analysis, radiology AI, diagnostic imaging"
+    examples:
+      - "medical image analysis, radiology AI, diagnostic imaging"
+      - "CT, MRI, X-ray, ultrasound"
+
+  - name: "LLM Agent"
+    description: "LLM-based autonomous agents, tool use, planning"
+    examples:
+      - "autonomous agent, tool use, function calling"
+      - "planning, decision making, multi-agent"
+
+# Preprint configuration (arXiv + optional bioRxiv / medRxiv)
+preprints:
+  enabled: true
+
+  arxiv:
+    enabled: true
+    categories: "cs.AI+cs.CV+cs.CL+cs.LG"
+    max_papers_per_day: 0  # 0 = no limit
+    retry_interval_minutes: 30
+    max_retry_hours: 5
+
+  max_papers_per_source: 30
+  sources:
+    - name: "bioRxiv"
+      key: "biorxiv"
+      enabled: false
+    - name: "medRxiv"
+      key: "medrxiv"
+      enabled: false
+
+# Journal configuration
+# RSS URLs can be specified per journal; if omitted, built-in defaults are used.
+journals:
+  enabled: false
+  max_papers_per_journal: 30
+  sources:
+    - name: "Nature"
+      key: "nature"
+      enabled: true
+    - name: "Nature Medicine"
+      key: "nature_medicine"
+      enabled: true
+    - name: "NEJM"
+      key: "nejm"
+      enabled: true
+
+# LLM configuration - dual-agent architecture (supports fallback list)
+llm:
+  light:
+    - api_base: "${LIGHT_LLM_API_BASE}"
+      api_key: "${LIGHT_LLM_API_KEY}"
+      model: "${LIGHT_LLM_MODEL}"
+      temperature: 0.1
+      max_tokens: 500
+
+  heavy:
+    - api_base: "${HEAVY_LLM_API_BASE}"
+      api_key: "${HEAVY_LLM_API_KEY}"
+      model: "${HEAVY_LLM_MODEL}"
+      temperature: 0.3
+      max_tokens: 40000
+      rate_limit:
+        requests_per_minute: 60
+
+  summary:
+    use: "light"
+    temperature: 0.5
+    max_tokens: 2000
+
+# Output configuration
+output:
+  language: "Chinese"
+  formats:
+    markdown:
+      enabled: true
+      path: "./reports/"
+    json:
+      enabled: true
+      path: "./reports/json/"
+
+# Email notification (optional)
+# Supports two modes: "proxy" (Email Proxy API) or "smtp" (direct SMTP)
+email:
+  enabled: false
+  sender_name: "Paper Pulse"
+  recipients:
+    - "your-email@example.com"
+  mode: "proxy"  # or "smtp"
+  proxy:
+    api_url: "${EMAIL_PROXY_API_URL}"
+    api_token: "${EMAIL_PROXY_API_TOKEN}"
+  smtp:
+    host: "${SMTP_HOST}"
+    port: 465
+    user: "${SMTP_USER}"
+    pass: "${SMTP_PASS}"
+    use_tls: true
+    max_retries: 3
+
+# Runtime configuration
+runtime:
+  schedule: "10 9 * * *"
+  timezone: "Asia/Shanghai"
+  retry_count: 3
+  pdf_timeout: 120
+  concurrent_filtering: 10
+  concurrent_analysis: 1
+  pdf_cache_keep_days: 7  # 自动清理超过 N 天的 PDF 缓存，0 表示不清理
+
+# EZproxy / institutional access configuration (optional)
+# If enabled, PDFs behind paywalls will be fetched via your library proxy.
+ezproxy:
+  enabled: false
+  headless: true
+  # Base URL of your institution's EZproxy login page
+  base_url: "${EZPROXY_BASE_URL}"
+  # Optional: override default HTML form selectors if your school uses different names
+  # username_field: "userid"
+  # password_field: "password"
+  # submit_selector: "input[type='submit']"
+  # Credentials are read from environment variables:
+  # - EZPROXY_UID
+  # - EZPROXY_PIN

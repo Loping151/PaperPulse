@@ -280,7 +280,7 @@ class PDFHandler:
             f"Compressing PDF for retry ({target_name}): {original_size_mb:.2f} MB"
         )
 
-        with tempfile.TemporaryDirectory(prefix="paper-radar-pdf-compress-") as tmpdir:
+        with tempfile.TemporaryDirectory(prefix="paper-pulse-pdf-compress-") as tmpdir:
             input_pdf = Path(tmpdir) / "input.pdf"
             output_pdf = Path(tmpdir) / "output.pdf"
             input_pdf.write_bytes(original_bytes)
@@ -359,14 +359,16 @@ class PDFHandler:
 
 class EZproxyPDFHandler(PDFHandler):
     """
-    PDF Handler with EZproxy authentication for accessing paywalled content.
+    Generic PDF Handler with EZproxy (or compatible library proxy) authentication
+    for accessing paywalled journal content.
 
-    This handler uses Selenium to authenticate with HKU Library's EZproxy,
+    This handler uses Selenium to authenticate with your institution's proxy,
     then uses the authenticated session to download PDFs from Nature and
     other journals that require institutional access.
-    """
 
-    EZPROXY_BASE = "https://eproxy.lib.hku.hk/login?url="
+    Configuration is fully generic and driven by environment variables or
+    constructor arguments.
+    """
 
     def __init__(
         self,
@@ -376,6 +378,10 @@ class EZproxyPDFHandler(PDFHandler):
         headless: bool = True,
         compression_timeout: int = 120,
         compression_profile: str = "/ebook",
+        base_url: Optional[str] = None,
+        username_field: Optional[str] = None,
+        password_field: Optional[str] = None,
+        submit_selector: Optional[str] = None,
     ):
         """
         Initialize the EZproxy PDF handler.
@@ -387,6 +393,10 @@ class EZproxyPDFHandler(PDFHandler):
             headless: Run browser in headless mode (default True)
             compression_timeout: PDF compression timeout in seconds
             compression_profile: Ghostscript PDFSETTINGS profile
+            base_url: EZproxy login base URL (e.g. https://eproxy.lib.xxx.edu/login?url=)
+            username_field: HTML name attribute for username field (default: userid)
+            password_field: HTML name attribute for password field (default: password)
+            submit_selector: CSS selector for login submit button (default: input[type='submit'])
         """
         super().__init__(
             timeout=timeout,
@@ -406,9 +416,24 @@ class EZproxyPDFHandler(PDFHandler):
 
         self.cookies_file.parent.mkdir(parents=True, exist_ok=True)
 
-        # Load credentials from environment
-        self.hku_uid = os.getenv("HKU_LIBRARY_UID", "")
-        self.hku_pin = os.getenv("HKU_LIBRARY_PIN", "")
+        # EZproxy base URL
+        self.ezproxy_base = base_url or os.getenv("EZPROXY_BASE_URL", "")
+        if not self.ezproxy_base:
+            # Backward compatibility with old HKU-specific env vars
+            self.ezproxy_base = "https://eproxy.lib.hku.hk/login?url="
+
+        # Derive proxy host from base URL for redirect checks
+        parsed_base = urlparse(self.ezproxy_base)
+        self.proxy_host = parsed_base.netloc
+
+        # Load credentials from environment (new generic vars preferred, old HKU vars as fallback)
+        self.ezproxy_uid = os.getenv("EZPROXY_UID", "") or os.getenv("HKU_LIBRARY_UID", "")
+        self.ezproxy_pin = os.getenv("EZPROXY_PIN", "") or os.getenv("HKU_LIBRARY_PIN", "")
+
+        # Login form selectors (some schools use different field names)
+        self.username_field = username_field or os.getenv("EZPROXY_USERNAME_FIELD", "userid")
+        self.password_field = password_field or os.getenv("EZPROXY_PASSWORD_FIELD", "password")
+        self.submit_selector = submit_selector or os.getenv("EZPROXY_SUBMIT_SELECTOR", "input[type='submit']")
 
         # Session for authenticated requests
         self._session: Optional[requests.Session] = None
@@ -427,8 +452,8 @@ class EZproxyPDFHandler(PDFHandler):
             https://www.nature.com/articles/xxx -> https://www-nature-com.eproxy.lib.hku.hk/articles/xxx
         """
         parsed = urlparse(url)
-        # Convert hostname: www.nature.com -> www-nature-com.eproxy.lib.hku.hk
-        proxied_host = parsed.netloc.replace(".", "-") + ".eproxy.lib.hku.hk"
+        # Convert hostname: www.nature.com -> www-nature-com.<proxy_host>
+        proxied_host = parsed.netloc.replace(".", "-") + "." + self.proxy_host
         proxied_url = f"https://{proxied_host}{parsed.path}"
         if parsed.query:
             proxied_url += f"?{parsed.query}"
@@ -544,8 +569,8 @@ class EZproxyPDFHandler(PDFHandler):
         Returns:
             True if login successful
         """
-        if not self.hku_uid or not self.hku_pin:
-            logger.error("HKU_LIBRARY_UID or HKU_LIBRARY_PIN not set in environment")
+        if not self.ezproxy_uid or not self.ezproxy_pin:
+            logger.error("EZPROXY_UID or EZPROXY_PIN not set in environment")
             return False
 
         try:
@@ -556,20 +581,20 @@ class EZproxyPDFHandler(PDFHandler):
             logger.error("Selenium not installed")
             return False
 
-        logger.info(f"Performing EZproxy login for UID: {self.hku_uid[:3]}***")
+        logger.info(f"Performing EZproxy login for UID: {self.ezproxy_uid[:3]}***")
 
         try:
             self._driver = self._create_driver()
 
             # Navigate to EZproxy login
-            login_url = self.EZPROXY_BASE + target_url
+            login_url = self.ezproxy_base + target_url
             logger.debug(f"Opening: {login_url}")
             self._driver.get(login_url)
             time.sleep(3)
 
             # Check if already authenticated (redirected to proxied URL)
             current_url = self._driver.current_url or ""
-            if "eproxy.lib.hku.hk" in current_url and "login" not in current_url.lower():
+            if self.proxy_host in current_url and "login" not in current_url.lower():
                 logger.info("Already authenticated via cached session")
                 self._save_cookies()
                 return True
@@ -577,10 +602,10 @@ class EZproxyPDFHandler(PDFHandler):
             # Wait for login form to be fully loaded and interactable
             wait = WebDriverWait(self._driver, 15)
 
-            # Wait for userid field to be clickable
+            # Wait for username field to be clickable
             logger.debug("Waiting for login form...")
             username_field = wait.until(
-                EC.element_to_be_clickable((By.NAME, "userid"))
+                EC.element_to_be_clickable((By.NAME, self.username_field))
             )
 
             # Scroll to element to ensure visibility
@@ -591,39 +616,42 @@ class EZproxyPDFHandler(PDFHandler):
 
             # Clear and fill username
             username_field.clear()
-            username_field.send_keys(self.hku_uid)
+            username_field.send_keys(self.ezproxy_uid)
             logger.debug("Username entered")
             time.sleep(0.3)
 
             # Wait for password field to be clickable
             password_field = wait.until(
-                EC.element_to_be_clickable((By.NAME, "password"))
+                EC.element_to_be_clickable((By.NAME, self.password_field))
             )
             password_field.clear()
-            password_field.send_keys(self.hku_pin)
+            password_field.send_keys(self.ezproxy_pin)
             logger.debug("Password entered")
             time.sleep(0.3)
 
             # Find and click submit button
             submit_btn = wait.until(
-                EC.element_to_be_clickable((By.CSS_SELECTOR, "input[type='submit']"))
+                EC.element_to_be_clickable((By.CSS_SELECTOR, self.submit_selector))
             )
             submit_btn.click()
             logger.debug("Login form submitted, waiting for redirect...")
+
+            # Build dash-style host pattern for alternative redirect detection
+            dashed_host = self.proxy_host.replace(".", "-")
 
             # Wait for redirect to authenticated URL
             for i in range(30):
                 time.sleep(1)
                 current_url = self._driver.current_url or ""
                 # Check for successful authentication
-                if "eproxy.lib.hku.hk" in current_url and "login" not in current_url.lower():
+                if self.proxy_host in current_url and "login" not in current_url.lower():
                     logger.info(f"Login successful after {i+1}s")
                     self._save_cookies()
                     self._load_cookies_to_session()
                     self._authenticated = True
                     return True
                 # Also check if redirected to target site via proxy
-                if "-eproxy-lib-hku-hk" in current_url or ".eproxy.lib.hku.hk" in current_url:
+                if dashed_host in current_url or f".{self.proxy_host}" in current_url:
                     logger.info(f"Login successful (proxied URL) after {i+1}s")
                     self._save_cookies()
                     self._load_cookies_to_session()

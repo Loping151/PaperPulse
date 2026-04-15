@@ -1,4 +1,4 @@
-# PaperRadar - NAS Docker 部署指南
+# Paper Pulse - NAS Docker 部署指南
 
 ## 部署方式选择
 
@@ -16,14 +16,14 @@
 在 NAS 上创建目录并准备配置文件：
 
 ```bash
-mkdir -p /volume1/docker/paper-radar
-cd /volume1/docker/paper-radar
+mkdir -p /volume1/docker/paper-pulse
+cd /volume1/docker/paper-pulse
 ```
 
 需要的文件（共 3 个）：
 
 ```
-paper-radar/
+paper-pulse/
 ├── docker-compose.nas.yml  # 从 GitHub 下载
 ├── config.yaml             # 从 GitHub 下载并修改
 └── .env                    # 从 .env.example 创建
@@ -44,8 +44,9 @@ HEAVY_LLM_API_KEY=your-gemini-api-key
 HEAVY_LLM_MODEL=gemini-2.0-flash
 
 # EZproxy 配置（访问 Nature 等付费期刊）
-HKU_LIBRARY_UID=your-library-uid
-HKU_LIBRARY_PIN=your-library-pin
+EZPROXY_BASE_URL=https://eproxy.lib.your-school.edu/login?url=
+EZPROXY_UID=your-library-uid
+EZPROXY_PIN=your-library-pin
 EOF
 
 # 编辑填写实际值
@@ -68,7 +69,7 @@ docker-compose -f docker-compose.nas.yml logs -f
 当 Mac 端推送新版本后，NAS 端更新：
 
 ```bash
-cd /volume1/docker/paper-radar
+cd /volume1/docker/paper-pulse
 
 # 拉取最新镜像
 docker-compose -f docker-compose.nas.yml pull
@@ -83,10 +84,10 @@ docker-compose -f docker-compose.nas.yml up -d --force-recreate
 
 ### 1. 准备文件
 
-将以下文件上传到 NAS（例如 `/volume1/docker/paper-radar/`）：
+将以下文件上传到 NAS（例如 `/volume1/docker/paper-pulse/`）：
 
 ```
-paper-radar/
+paper-pulse/
 ├── .env                    # 环境变量（从 .env.example 复制并填写）
 ├── config.yaml             # 配置文件
 ├── docker-compose.yml      # Docker Compose 配置
@@ -123,15 +124,16 @@ HEAVY_LLM_API_KEY=your-gemini-api-key
 HEAVY_LLM_MODEL=gemini-2.0-flash
 
 # EZproxy 配置（访问 Nature 等付费期刊）
-HKU_LIBRARY_UID=your-library-uid
-HKU_LIBRARY_PIN=your-library-pin
+EZPROXY_BASE_URL=https://eproxy.lib.your-school.edu/login?url=
+EZPROXY_UID=your-library-uid
+EZPROXY_PIN=your-library-pin
 ```
 
 ### 3. 构建并启动
 
 ```bash
 # 进入项目目录
-cd /volume1/docker/paper-radar
+cd /volume1/docker/paper-pulse
 
 # 构建镜像
 docker-compose build
@@ -170,7 +172,7 @@ docker login
 
 ```bash
 # 手动触发一次运行（使用对应的 compose 文件）
-docker-compose -f docker-compose.nas.yml exec paper-radar python main.py --debug --dry-run
+docker-compose -f docker-compose.nas.yml exec paper-pulse python main.py --debug --dry-run
 
 # 或者设置 RUN_ON_START=true 重启容器
 ```
@@ -229,7 +231,7 @@ docker-compose -f docker-compose.nas.yml restart
 docker-compose -f docker-compose.nas.yml down
 
 # 查看镜像版本
-docker images rockhhhh/paper-radar
+docker images rockhhhh/paper-pulse
 ```
 
 ---
@@ -254,7 +256,7 @@ docker images rockhhhh/paper-radar
 docker-compose -f docker-compose.nas.yml logs --tail=100
 
 # 应用日志
-cat logs/paper-radar-$(date +%Y-%m-%d).log
+cat logs/paper-pulse-$(date +%Y-%m-%d).log
 ```
 
 ### EZproxy 认证失败

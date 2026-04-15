@@ -1,4 +1,4 @@
-# PaperRadar - 设计方案文档
+# Paper Pulse - 设计方案文档
 
 ## 项目概述
 
@@ -81,7 +81,7 @@
 ## 项目结构
 
 ```
-paper-radar/
+paper-pulse/
 ├── main.py                    # 主程序入口，协调各 Agent
 ├── config.yaml                # 配置文件 (关键词 + 双 LLM 配置)
 │
@@ -301,8 +301,9 @@ ezproxy:
 | HEAVY_LLM_API_BASE | 重量级 LLM API 地址 | 是 |
 | HEAVY_LLM_API_KEY | 重量级 LLM API 密钥 | 是 |
 | HEAVY_LLM_MODEL | 重量级 LLM 模型名称 | 是 |
-| HKU_LIBRARY_UID | HKU 图书馆用户 ID | 否* |
-| HKU_LIBRARY_PIN | HKU 图书馆 PIN | 否* |
+| EZPROXY_BASE_URL | 机构代理登录地址 | 否* |
+| EZPROXY_UID | 图书馆用户 ID | 否* |
+| EZPROXY_PIN | 图书馆 PIN / 密码 | 否* |
 | TZ | 时区 | 否 |
 | WEB_PORT | Web UI 端口（默认 8000） | 否 |
 | RUN_ON_START | 容器启动时立即运行一次（默认 false） | 否 |

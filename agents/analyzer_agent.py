@@ -309,6 +309,8 @@ class AnalyzerAgent:
                 )
 
         analysis.paper = paper
+        if paper:
+            analysis.alphaxiv_url = paper.alphaxiv_url
 
         if analysis.success:
             logger.info(f"  [{index}/{total}] Analysis complete: {analysis.tldr[:50]}...")
