@@ -136,6 +136,9 @@ class Reporter:
                     if analysis.tldr:
                         lines.append(f"| **TLDR** | {analysis.tldr} |")
 
+                    if analysis.quality_score > 0:
+                        lines.append(f"| **质量评分** | **{analysis.quality_score} / 10** — {analysis.score_reason} |")
+
                     lines.append("")
 
                     if analysis.contributions:

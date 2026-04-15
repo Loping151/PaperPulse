@@ -6,6 +6,7 @@ import time
 import threading
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import Optional
+from json_repair import repair_json
 from loguru import logger
 
 from .base import BaseLLMClient
@@ -44,14 +45,28 @@ class AnalyzerAgent:
    - 如果论文提供了开源代码，提取代码仓库链接（GitHub、GitLab等）
    - 提取论文使用的数据集信息，包括：数据集名称、规模（样本数量、图像数量等）、是否公开
 
-6. **论文质量评分**
-   - 综合评分（1-10分），评分标准：
-     * 9-10分：顶级工作，重大突破或创新，实验充分，影响力大
-     * 7-8分：优秀工作，有明显创新点，实验扎实
-     * 5-6分：良好工作，有一定贡献，但创新性或实验有不足
-     * 3-4分：一般工作，贡献有限，存在明显问题
-     * 1-2分：质量较差，缺乏创新或存在严重问题
-   - 评分理由（一句话解释为什么给这个分数）
+6. **论文质量评分（请严格按以下步骤执行，以保证评分稳定性）**
+   请从以下四个维度分别给出 1-10 分的子评分，并基于子评分加权给出最终综合评分（1-10 的整数）。避免"中庸倾向"，敢于给低分或高分。
+   - **维度 A：创新性**（问题是否新颖、方法是否有突破、是否提出新范式）
+   - **维度 B：实验充分性**（实验规模、对比方法数量、消融实验、统计显著性）
+   - **维度 C：写作与可复现性**（逻辑是否清晰、代码/数据是否公开、细节是否足够复现）
+   - **维度 D：影响力与实用价值**（对领域的潜在推动作用、临床/工业应用价值）
+
+   评分标准（每个维度与最终分）：
+   - 10 分：里程碑级，开创性贡献
+   - 8-9 分：显著优于同期工作，值得广泛引用
+   - 6-7 分：稳健的好工作，有明确增量
+   - 4-5 分：小改进或存在明显缺陷
+   - 2-3 分：方法或实验有重大缺陷
+   - 1 分：基本不可接受（抄袭、无实验支撑、严重错误）
+
+   请在返回的 JSON 中额外包含以下字段（用于追溯，但主要字段仍是 quality_score）：
+   - "score_innovation": 整数
+   - "score_experiment": 整数
+   - "score_reproducibility": 整数
+   - "score_impact": 整数
+   - 最终 "quality_score": 整数（建议 = round(维度A*0.35 + 维度B*0.30 + 维度C*0.15 + 维度D*0.20)，可上下浮动 1 分以体现综合印象）
+   - "score_reason": 一句话说明，格式如"[创新x/实验x/可复现x/影响x] 一句话点评"，例如"[9/7/6/8] 方法极具创新性，但实验数据集偏小，泛化性仍需验证"。
 
 请严格以 JSON 格式返回，不要包含其他内容：
 {{
@@ -72,8 +87,12 @@ class AnalyzerAgent:
     }},
     "code_url": "代码仓库链接，如 https://github.com/xxx/xxx，若无则留空",
     "dataset_info": "数据集信息描述，如：使用ImageNet(1.2M张图像)、MIMIC-CXR(377K张胸部X光)等，包含规模信息；若未明确提及则写'未明确说明'",
+    "score_innovation": 8,
+    "score_experiment": 7,
+    "score_reproducibility": 6,
+    "score_impact": 7,
     "quality_score": 7,
-    "score_reason": "一句话解释评分理由，如：方法新颖但实验数据集较小，泛化性有待验证"
+    "score_reason": "[8/7/6/7] 方法极具创新性，但实验数据集偏小，泛化性仍需验证"
 }}"""
 
     def __init__(self, llm_client: BaseLLMClient, language: str = "Chinese", requests_per_minute: int = 0):
@@ -146,6 +165,14 @@ class AnalyzerAgent:
                     return json.loads(response[start:end])
                 except json.JSONDecodeError:
                     pass
+
+        # Fallback: use json-repair to fix malformed JSON
+        try:
+            repaired = repair_json(response, return_objects=True)
+            if isinstance(repaired, dict):
+                return repaired
+        except Exception:
+            pass
 
         return None
 

@@ -5,7 +5,7 @@ After=network.target
 [Service]
 Type=oneshot
 # TODO: change to your actual project path
-WorkingDirectory=/opt/paper-pulse
+WorkingDirectory=/root/paper-radar
 Environment=PYTHONUNBUFFERED=1
-EnvironmentFile=-/opt/paper-pulse/.env
-ExecStart=/usr/bin/python3 main.py
+EnvironmentFile=-/root/paper-radar/.env
+ExecStart=/root/paper-radar/.venv/bin/python main.py
