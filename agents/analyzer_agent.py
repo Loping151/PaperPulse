@@ -251,6 +251,10 @@ class AnalyzerAgent:
                 code_url=result.get("code_url", ""),
                 dataset_info=result.get("dataset_info", ""),
                 quality_score=result.get("quality_score", 5),
+                score_innovation=result.get("score_innovation", 0),
+                score_experiment=result.get("score_experiment", 0),
+                score_reproducibility=result.get("score_reproducibility", 0),
+                score_impact=result.get("score_impact", 0),
                 score_reason=result.get("score_reason", ""),
                 success=True,
             )

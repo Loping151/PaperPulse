@@ -238,6 +238,10 @@ function collectUniquePapers(report) {
       const nextScore = paper.quality_score || 0;
       if (nextScore > existingScore) {
         existing.quality_score = paper.quality_score;
+        existing.score_innovation = paper.score_innovation;
+        existing.score_experiment = paper.score_experiment;
+        existing.score_reproducibility = paper.score_reproducibility;
+        existing.score_impact = paper.score_impact;
         existing.score_reason = paper.score_reason;
       }
     }
@@ -652,9 +656,17 @@ function renderPapers(report) {
       // Quality score badge
       const score = paper.quality_score || 0;
       const scoreReason = paper.score_reason || '';
+      const sInno = paper.score_innovation || 0;
+      const sExp = paper.score_experiment || 0;
+      const sRepro = paper.score_reproducibility || 0;
+      const sImpact = paper.score_impact || 0;
+      const hasSubScores = sInno || sExp || sRepro || sImpact;
+      const scoreTooltip = hasSubScores
+        ? `创新${sInno} / 实验${sExp} / 复现${sRepro} / 影响${sImpact}` + (scoreReason ? `\n${scoreReason}` : '')
+        : scoreReason;
       const scoreClass = score >= 8 ? 'score-high' : score >= 6 ? 'score-medium' : 'score-low';
       const scoreHtml = score > 0
-        ? `<div class="paper-score ${scoreClass}" title="${escapeHtml(scoreReason)}">
+        ? `<div class="paper-score ${scoreClass}" title="${escapeHtml(scoreTooltip)}">
             <span class="score-value">${score}</span>
             <span class="score-label">/ 10</span>
           </div>`
@@ -688,10 +700,21 @@ function renderPapers(report) {
             </summary>
             <div class="paper-details-body">
               ${
-                scoreReason
-                  ? `<div class="paper-score-reason"><span class="score-reason-label">评分理由：</span>${escapeHtml(
+                (hasSubScores || scoreReason)
+                  ? `<div class="paper-score-reason">${
+                      hasSubScores
+                        ? `<div class="score-breakdown">
+                            <div class="score-dim"><span class="score-dim-label">创新</span><div class="score-dim-bar"><div class="score-dim-fill${sInno >= 8 ? ' fill-high' : sInno >= 6 ? ' fill-medium' : ' fill-low'}" style="width:${sInno * 10}%"></div></div><span class="score-dim-val">${sInno}</span></div>
+                            <div class="score-dim"><span class="score-dim-label">实验</span><div class="score-dim-bar"><div class="score-dim-fill${sExp >= 8 ? ' fill-high' : sExp >= 6 ? ' fill-medium' : ' fill-low'}" style="width:${sExp * 10}%"></div></div><span class="score-dim-val">${sExp}</span></div>
+                            <div class="score-dim"><span class="score-dim-label">复现</span><div class="score-dim-bar"><div class="score-dim-fill${sRepro >= 8 ? ' fill-high' : sRepro >= 6 ? ' fill-medium' : ' fill-low'}" style="width:${sRepro * 10}%"></div></div><span class="score-dim-val">${sRepro}</span></div>
+                            <div class="score-dim"><span class="score-dim-label">影响</span><div class="score-dim-bar"><div class="score-dim-fill${sImpact >= 8 ? ' fill-high' : sImpact >= 6 ? ' fill-medium' : ' fill-low'}" style="width:${sImpact * 10}%"></div></div><span class="score-dim-val">${sImpact}</span></div>
+                          </div>`
+                        : ''
+                    }${
                       scoreReason
-                    )}</div>`
+                        ? `<div class="score-reason-text"><span class="score-reason-label">评分理由：</span>${escapeHtml(scoreReason)}</div>`
+                        : ''
+                    }</div>`
                   : ''
               }
               ${infoItems.length ? `<div class="paper-info-list">${infoItems.join('')}</div>` : '<p class="empty-hint">暂无更多细节。</p>'}

@@ -90,6 +90,10 @@ class PaperAnalysis:
 
     # Quality score (1-10)
     quality_score: int = 5  # Default score
+    score_innovation: int = 0
+    score_experiment: int = 0
+    score_reproducibility: int = 0
+    score_impact: int = 0
     score_reason: str = ""  # One-sentence explanation for the score
 
     # Paper numbering (assigned during report generation)

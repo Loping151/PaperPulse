@@ -477,6 +477,66 @@ body {
   color: var(--text-secondary);
 }
 
+.score-reason-text {
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.score-breakdown {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px 16px;
+  margin-bottom: 8px;
+}
+
+.score-dim {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.score-dim-label {
+  font-size: 12px;
+  color: var(--text-muted);
+  width: 28px;
+  flex-shrink: 0;
+}
+
+.score-dim-bar {
+  flex: 1;
+  height: 6px;
+  background: var(--bg-primary);
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.score-dim-fill {
+  height: 100%;
+  border-radius: 3px;
+  transition: width 0.3s ease;
+}
+
+.score-dim-fill.fill-high {
+  background: linear-gradient(90deg, #22c55e, #16a34a);
+}
+
+.score-dim-fill.fill-medium {
+  background: linear-gradient(90deg, #facc15, #eab308);
+}
+
+.score-dim-fill.fill-low {
+  background: linear-gradient(90deg, #f87171, #ef4444);
+}
+
+.score-dim-val {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  width: 16px;
+  text-align: right;
+  flex-shrink: 0;
+}
+
 .paper-date {
   font-size: 12px;
   color: var(--text-muted);

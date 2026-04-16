@@ -137,7 +137,18 @@ class Reporter:
                         lines.append(f"| **TLDR** | {analysis.tldr} |")
 
                     if analysis.quality_score > 0:
-                        lines.append(f"| **质量评分** | **{analysis.quality_score} / 10** — {analysis.score_reason} |")
+                        score_parts = []
+                        if analysis.score_innovation:
+                            score_parts.append(f"创新{analysis.score_innovation}")
+                        if analysis.score_experiment:
+                            score_parts.append(f"实验{analysis.score_experiment}")
+                        if analysis.score_reproducibility:
+                            score_parts.append(f"复现{analysis.score_reproducibility}")
+                        if analysis.score_impact:
+                            score_parts.append(f"影响{analysis.score_impact}")
+                        breakdown = f" ({' / '.join(score_parts)})" if score_parts else ""
+                        reason = f" — {analysis.score_reason}" if analysis.score_reason else ""
+                        lines.append(f"| **质量评分** | **{analysis.quality_score} / 10**{breakdown}{reason} |")
 
                     lines.append("")
 
@@ -257,6 +268,10 @@ class Reporter:
             "code_url": analysis.code_url,
             "dataset_info": analysis.dataset_info,
             "quality_score": analysis.quality_score,
+            "score_innovation": analysis.score_innovation,
+            "score_experiment": analysis.score_experiment,
+            "score_reproducibility": analysis.score_reproducibility,
+            "score_impact": analysis.score_impact,
             "score_reason": analysis.score_reason,
             "matched_keywords": analysis.matched_keywords,
             "pdf_url": pdf_url,
