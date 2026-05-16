@@ -30,10 +30,16 @@ class BaseLLMClient:
             max_tokens: Maximum tokens in response
             **kwargs: Additional parameters
         """
+        # Custom UA: some gateways (e.g. newapi.20200626.xyz) WAF-block
+        # requests with the openai-python default "OpenAI/Python ..." UA.
+        ua = "paper-pulse/1.0"
         self.client = OpenAI(
             base_url=api_base,
             api_key=api_key,
-            http_client=httpx.Client(timeout=180, verify=False),
+            http_client=httpx.Client(
+                timeout=180, verify=False, headers={"User-Agent": ua},
+            ),
+            default_headers={"User-Agent": ua},
         )
         self.model = model
         self.temperature = temperature
@@ -112,16 +118,26 @@ class BaseLLMClient:
             }
         ]
 
+        # Stream to keep the connection alive: some gateways cap idle/TTFB
+        # at ~60s, which large-PDF inference often exceeds.
         params = {
             "model": self.model,
             "messages": messages,
             "temperature": temperature if temperature is not None else self.temperature,
             "max_tokens": max_tokens if max_tokens is not None else self.max_tokens,
+            "stream": True,
         }
 
         try:
-            response = self.client.chat.completions.create(**params)
-            return response.choices[0].message.content
+            stream = self.client.chat.completions.create(**params)
+            chunks: list[str] = []
+            for event in stream:
+                if not event.choices:
+                    continue
+                delta = event.choices[0].delta.content
+                if delta:
+                    chunks.append(delta)
+            return "".join(chunks)
         except Exception as e:
             logger.error(f"LLM chat with PDF error: {e}")
             raise
