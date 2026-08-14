@@ -6,6 +6,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Optional
 
+from urllib.parse import urlparse
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
@@ -142,7 +143,17 @@ def get_local_pdf(
 
     if fallback_url:
         safe = fallback_url.strip()
-        if safe.startswith("http://") or safe.startswith("https://"):
+        # 2026-08-14: 只允许学术源域白名单, 封开放重定向
+        allowed = ("arxiv.org", "openreview.net", "biorxiv.org", "medrxiv.org",
+                   "aclanthology.org", "neurips.cc", "pmlr.org", "nature.com",
+                   "science.org", "springer.com", "ieee.org", "acm.org",
+                   "sciencedirect.com", "wiley.com", "aps.org", "iop.org",
+                   "mdpi.com", "plos.org", "cell.com", "thelancet.com", "bmj.com")
+        try:
+            host = urlparse(safe).hostname or ""
+        except ValueError:
+            host = ""
+        if safe.startswith("https://") and host.endswith(allowed):
             return RedirectResponse(url=safe, status_code=307)
 
     raise HTTPException(status_code=404, detail="Local PDF not found")
